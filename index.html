@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erase & Earn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500&display=swap');
+        
+        body {
+            font-family: 'Roboto Mono', monospace;
+        }
+        
+        .scanline {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.1;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(255,255,255,0.03) 2px,
+                rgba(255,255,255,0.03) 4px
+            );
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.1; }
+            50% { opacity: 0.15; }
+        }
+        
+        .log-entry {
+            animation: logAppear 0.3s ease-out;
+        }
+        
+        @keyframes logAppear {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-black text-gray-400 min-h-screen overflow-x-hidden">
+    <!-- Background -->
+    <div class="absolute inset-0 opacity-20 bg-cover bg-center" style="background-image: url('background.png')"></div>
+    
+    <!-- Scanline effect -->
+    <div class="scanline"></div>
+
+    <div class="relative z-10 container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-12 border-b border-gray-800 pb-6">
+            <div class="flex items-center gap-4">
+                <img src="BurnPool (2).png" alt="Erase & Earn" class="w-16 h-16">
+                <h1 class="text-2xl font-light tracking-widest text-gray-300">
+                    ERASE <span class="text-red-500">&</span> EARN
+                </h1>
+            </div>
+            <a href="https://x.com/eraseandearn" target="_blank" rel="noopener noreferrer" 
+               class="text-gray-500 hover:text-gray-300 transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/>
+                </svg>
+            </a>
+        </div>
+
+        <!-- Main Interface -->
+        <div class="bg-black bg-opacity-60 border border-gray-800 shadow-2xl">
+            <div class="border-b border-gray-800 px-6 py-3 bg-gray-900 bg-opacity-40">
+                <div class="text-xs text-gray-600 uppercase tracking-wider">
+                    Memory Purge Interface v2.4.1
+                </div>
+            </div>
+
+            <div class="p-8">
+                <!-- Not Connected State -->
+                <div id="connectState" class="text-center py-16">
+                    <div class="mb-8 text-gray-600 text-sm">
+                        <p class="mb-2">/// UNAUTHORIZED ACCESS PROTOCOL</p>
+                        <p class="mb-2">/// WALLET VERIFICATION REQUIRED</p>
+                        <p>/// PROCEED WITH CAUTION</p>
+                    </div>
+                    <button id="connectBtn"
+                        class="px-8 py-3 bg-transparent border border-red-900 text-red-400 hover:bg-red-950 hover:border-red-700 transition-all uppercase tracking-widest text-sm">
+                        Connect Wallet
+                    </button>
+                </div>
+
+                <!-- Connected State -->
+                <div id="connectedState" class="hidden">
+                    <div class="mb-8 pb-6 border-b border-gray-900">
+                        <div class="text-xs text-gray-600 mb-2">CONNECTED_WALLET:</div>
+                        <div id="walletAddress" class="text-sm text-gray-400 font-light break-all"></div>
+                    </div>
+
+                    <!-- Erase Button State -->
+                    <div id="eraseState" class="text-center py-12">
+                        <div class="mb-8 text-gray-500 text-xs leading-relaxed">
+                            <p class="mb-3">This action will initiate a complete activity purge.</p>
+                            <p class="mb-3">All transaction traces will be fragmented.</p>
+                            <p class="mb-3 text-red-500">This process cannot be reversed.</p>
+                            <p class="mb-3">Token compensation will be issued upon completion.</p>
+                        </div>
+                        <button id="eraseBtn"
+                            class="px-12 py-4 bg-transparent border-2 border-red-900 text-red-400 hover:bg-red-950 hover:border-red-700 transition-all uppercase tracking-widest text-sm shadow-lg hover:shadow-red-900/50">
+                            Erase Activity
+                        </button>
+                    </div>
+
+                    <!-- Purging State -->
+                    <div id="purgingState" class="hidden">
+                        <!-- Progress Bar -->
+                        <div class="mb-6">
+                            <div class="h-2 bg-gray-900 overflow-hidden">
+                                <div id="progressBar" class="h-full bg-red-600 transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                            <div id="progressText" class="text-right text-xs text-gray-600 mt-1">0.0% COMPLETE</div>
+                        </div>
+
+                        <!-- Log Terminal -->
+                        <div class="bg-black border border-gray-900 p-4 h-64 overflow-y-auto text-xs" id="logTerminal"></div>
+                    </div>
+
+                    <!-- Complete State -->
+                    <div id="completeState" class="hidden text-center py-16">
+                        <div class="mb-8">
+                            <div class="text-green-600 text-sm mb-4">/// PURGE_SUCCESSFUL</div>
+                            <div id="tokensEarned" class="text-6xl font-light text-gray-300 mb-2">0</div>
+                            <div class="text-xs text-gray-600 uppercase tracking-widest">Tokens Earned</div>
+                        </div>
+                        <div class="text-xs text-gray-700 leading-relaxed mb-8">
+                            <p class="mb-2">Activity traces have been nullified.</p>
+                            <p class="mb-2">Compensation has been credited.</p>
+                            <p>Session can be terminated.</p>
+                        </div>
+                        <button id="returnBtn"
+                            class="px-8 py-2 bg-transparent border border-gray-800 text-gray-600 hover:border-gray-700 hover:text-gray-400 transition-all uppercase tracking-widest text-xs">
+                            Return to Interface
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-8 text-center text-xs text-gray-700">
+            <p>/// UNAUTHORIZED DISTRIBUTION PROHIBITED</p>
+            <p class="mt-1">/// USE AT YOUR OWN RISK</p>
+        </div>
+    </div>
+
+    <script>
+        let walletAddress = '';
+        let progress = 0;
+        let progressInterval = null;
+
+        const connectBtn = document.getElementById('connectBtn');
+        const eraseBtn = document.getElementById('eraseBtn');
+        const returnBtn = document.getElementById('returnBtn');
+        
+        const connectState = document.getElementById('connectState');
+        const connectedState = document.getElementById('connectedState');
+        const eraseState = document.getElementById('eraseState');
+        const purgingState = document.getElementById('purgingState');
+        const completeState = document.getElementById('completeState');
+        
+        const walletAddressEl = document.getElementById('walletAddress');
+        const logTerminal = document.getElementById('logTerminal');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const tokensEarnedEl = document.getElementById('tokensEarned');
+
+        function addLog(message, type = 'normal') {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'mb-1 log-entry';
+            
+            const time = new Date().toLocaleTimeString();
+            const colorClass = type === 'warning' ? 'text-yellow-600' : 
+                              type === 'complete' ? 'text-green-600' : 'text-gray-500';
+            
+            logEntry.innerHTML = `
+                <span class="text-gray-700">[${time}]</span>
+                <span class="ml-2 ${colorClass}">${message}</span>
+            `;
+            
+            logTerminal.appendChild(logEntry);
+            logTerminal.scrollTop = logTerminal.scrollHeight;
+        }
+
+        async function connectWallet() {
+            try {
+                const { solana } = window;
+                if (solana && solana.isPhantom) {
+                    const response = await solana.connect();
+                    walletAddress = response.publicKey.toString();
+                    walletAddressEl.textContent = walletAddress;
+                    
+                    connectState.classList.add('hidden');
+                    connectedState.classList.remove('hidden');
+                    
+                    addLog('WALLET_DETECTED: ' + walletAddress.slice(0, 8) + '...');
+                } else {
+                    alert('Phantom wallet not found. Please install Phantom.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Failed to connect wallet.');
+            }
+        }
+
+        function startPurge() {
+            eraseState.classList.add('hidden');
+            purgingState.classList.remove('hidden');
+            
+            progress = 0;
+            logTerminal.innerHTML = '';
+            
+            addLog('INITIALIZING_PURGE_SEQUENCE...');
+            
+            setTimeout(() => addLog('SCANNING_TRANSACTION_HISTORY...'), 800);
+            setTimeout(() => addLog('WARNING: IRREVERSIBLE_PROCESS', 'warning'), 1600);
+            setTimeout(() => addLog('FRAGMENTING_MEMORY_BLOCKS...'), 2400);
+            setTimeout(() => addLog('ERASING_ACTIVITY_TRACES...'), 3200);
+            setTimeout(() => addLog('NULLIFYING_SIGNATURES...'), 4000);
+            setTimeout(() => addLog('COMPACTING_LEDGER_REMNANTS...'), 4800);
+            setTimeout(() => addLog('FINALIZING_WIPE...'), 5600);
+            setTimeout(() => {
+                addLog('PURGE_COMPLETE', 'complete');
+                const earned = Math.floor(Math.random() * 500) + 100;
+                tokensEarnedEl.textContent = earned;
+                
+                clearInterval(progressInterval);
+                
+                setTimeout(() => {
+                    purgingState.classList.add('hidden');
+                    completeState.classList.remove('hidden');
+                }, 1000);
+            }, 6400);
+            
+            progressInterval = setInterval(() => {
+                if (progress < 100) {
+                    progress += 1.5;
+                    if (progress > 100) progress = 100;
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = progress.toFixed(1) + '% COMPLETE';
+                } else {
+                    clearInterval(progressInterval);
+                }
+            }, 60);
+        }
+
+        function returnToInterface() {
+            completeState.classList.add('hidden');
+            eraseState.classList.remove('hidden');
+            logTerminal.innerHTML = '';
+            progress = 0;
+            progressBar.style.width = '0%';
+            progressText.textContent = '0.0% COMPLETE';
+            addLog('WALLET_DETECTED: ' + walletAddress.slice(0, 8) + '...');
+        }
+
+        connectBtn.addEventListener('click', connectWallet);
+        eraseBtn.addEventListener('click', startPurge);
+        returnBtn.addEventListener('click', returnToInterface);
+    </script>
+</body>
+</html>
